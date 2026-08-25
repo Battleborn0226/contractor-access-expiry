@@ -63,6 +63,94 @@ def build_app_jwt(app_id: str, private_key: str, *, now: int | None = None) -> s
     return jwt.encode(payload, private_key, algorithm="RS256")
 
 
+@dataclass(frozen=True)
+class Installation:
+    """One organization's installation, as GitHub reports it."""
+
+    id: int
+    account_login: str
+    account_type: str
+    created_at: datetime | None
+    suspended: bool
+
+
+class AppClient:
+    """App-level GitHub access, authenticated with the App JWT alone.
+
+    Separate from `GitHubClient` because these endpoints are about the app
+    itself rather than any one installation, and they are reached with the
+    signed JWT rather than an installation token.
+    """
+
+    def __init__(
+        self,
+        *,
+        app_id: str | None = None,
+        private_key: str | None = None,
+        client: httpx.Client | None = None,
+    ) -> None:
+        self.app_id = app_id or config.GITHUB_APP_ID
+        self._private_key = private_key
+        self._client = client or httpx.Client(timeout=30.0)
+
+    def _key(self) -> str:
+        if self._private_key is not None:
+            return self._private_key
+        return config.Settings().private_key()
+
+    def installations(self) -> list[Installation]:
+        """Every organization that currently has this app installed.
+
+        This is ground truth. Webhook deliveries can fail -- a restart, a
+        deploy, a momentary outage -- and an install recorded nowhere is an
+        install that never counted. Asking GitHub directly does not depend on
+        having successfully received a message at the moment it was sent.
+        """
+
+        found: list[Installation] = []
+        page = 1
+        while True:
+            response = self._client.get(
+                f"{config.GITHUB_API}/app/installations",
+                params={"per_page": 100, "page": page},
+                headers={
+                    "Authorization": f"Bearer {build_app_jwt(self.app_id, self._key())}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            )
+            if response.status_code != 200:
+                raise GitHubError(
+                    f"could not list installations ({response.status_code}): "
+                    f"{response.text[:200]}"
+                )
+
+            batch = response.json()
+            if not batch:
+                return found
+
+            for item in batch:
+                account = item.get("account") or {}
+                created = item.get("created_at")
+                found.append(
+                    Installation(
+                        id=int(item["id"]),
+                        account_login=account.get("login", "unknown"),
+                        account_type=account.get("type", "Organization"),
+                        created_at=(
+                            datetime.fromisoformat(created.replace("Z", "+00:00"))
+                            if created
+                            else None
+                        ),
+                        suspended=bool(item.get("suspended_at")),
+                    )
+                )
+
+            if len(batch) < 100:
+                return found
+            page += 1
+
+
 class GitHubClient:
     """Read-only GitHub access for one installation."""
 

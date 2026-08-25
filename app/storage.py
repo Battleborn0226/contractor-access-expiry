@@ -121,10 +121,21 @@ class Storage:
     # -------------------------------------------------------- installations
 
     def record_installation(
-        self, installation_id: int, account_login: str, account_type: str = "Organization"
+        self,
+        installation_id: int,
+        account_login: str,
+        account_type: str = "Organization",
+        installed_at: datetime | None = None,
     ) -> None:
-        """An install, or a reinstall of a previously removed app."""
+        """An install, or a reinstall of a previously removed app.
 
+        `installed_at` exists for reconciliation. An install discovered days
+        after the fact must be dated when it happened, not when it was noticed
+        -- the gate counts from the earliest install, so backdating wrongly
+        would shift the whole 30-day window.
+        """
+
+        when = installed_at.isoformat(timespec="seconds") if installed_at else _now()
         self.connection.execute(
             """
             INSERT INTO installations
@@ -134,9 +145,15 @@ class Storage:
                 account_login = excluded.account_login,
                 uninstalled_at = NULL
             """,
-            (installation_id, account_login, account_type, _now()),
+            (installation_id, account_login, account_type, when),
         )
         self.connection.commit()
+
+    def installation_ids(self, *, active_only: bool = False) -> set[int]:
+        query = "SELECT installation_id FROM installations"
+        if active_only:
+            query += " WHERE uninstalled_at IS NULL"
+        return {row["installation_id"] for row in self.connection.execute(query)}
 
     def record_uninstall(self, installation_id: int) -> None:
         self.connection.execute(

@@ -10,8 +10,11 @@ repository deletes that person's private forks irreversibly.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import hashlib
 import hmac
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,13 +24,52 @@ from fastapi.templating import Jinja2Templates
 
 from app import config
 from app.github_client import GitHubClient, GitHubError
+from app.reconcile import ReconcileResult, reconcile
 from app.scanner import scan_installation
 from app.storage import Storage
 
 
-app = FastAPI(title="Contractor Access Expiry")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 storage = Storage(config.DATABASE_PATH)
+
+# Last reconciliation, surfaced on /gate so a silently failing sync is visible
+# rather than something you discover at day 30.
+last_reconcile: ReconcileResult | None = None
+
+
+async def _reconcile_once() -> None:
+    global last_reconcile
+    # The GitHub client is synchronous; keep it off the event loop.
+    last_reconcile = await asyncio.to_thread(reconcile, storage)
+
+
+async def _reconcile_loop() -> None:
+    while True:
+        await asyncio.sleep(config.RECONCILE_INTERVAL_SECONDS)
+        try:
+            await _reconcile_once()
+        except Exception:  # noqa: BLE001 - a failed sync must not kill the loop
+            logger.exception("reconcile loop iteration failed")
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Reconcile at boot: whatever was missed while this process was down --
+    # a deploy, a restart, a crash -- is picked up before serving anything.
+    await _reconcile_once()
+    task = asyncio.create_task(_reconcile_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+
+app = FastAPI(title="Contractor Access Expiry", lifespan=lifespan)
 
 
 def verify_signature(body: bytes, signature: str | None, secret: str) -> bool:
@@ -168,5 +210,6 @@ def gate(request: Request) -> HTMLResponse:
         {
             "gate": storage.gate(),
             "days_remaining": storage.days_remaining(),
+            "reconcile": last_reconcile,
         },
     )

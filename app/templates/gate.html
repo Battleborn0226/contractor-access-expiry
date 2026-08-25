@@ -7,6 +7,21 @@
   verdict: <strong>{{ gate.verdict }}</strong>
 </p>
 
+{% if reconcile %}
+  {% if reconcile.error %}
+  <div class="callout">
+    <strong>Installation sync is failing.</strong> {{ reconcile.error }}
+    <br>The counts below may be stale -- webhooks alone are not a reliable
+    record, and the reconciliation that backstops them is not running.
+  </div>
+  {% else %}
+  <p class="note">
+    Last synced with GitHub {{ reconcile.ran_at.strftime('%Y-%m-%d %H:%M') }} UTC
+    &mdash; {{ reconcile.summary() }}
+  </p>
+  {% endif %}
+{% endif %}
+
 <div class="callout">
   All four thresholds must pass at day 30. Any miss kills the project — no
   extension, no promotion, no reinterpreting the audience. These were written

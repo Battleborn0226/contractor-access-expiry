@@ -48,6 +48,11 @@ BILLABLE_VISIBILITIES = ("private", "internal")
 # Rate-limit courtesy: cap how many repos one scan will walk.
 MAX_REPOS_PER_SCAN = 500
 
+# How often to re-sync installations against GitHub. Six hours is far more
+# often than needed for correctness -- boot-time reconciliation already covers
+# restarts -- but cheap enough (one API call) that drift never lasts a day.
+RECONCILE_INTERVAL_SECONDS = 6 * 60 * 60
+
 
 @dataclass(frozen=True)
 class Settings:
