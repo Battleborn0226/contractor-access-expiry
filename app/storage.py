@@ -19,9 +19,12 @@ no reinterpreting the audience.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+from app import config
 
 
 SCHEMA = """
@@ -74,6 +77,8 @@ class GateResult:
     activated_and_retained: int
     enforcement_interest: int
     day: int
+    started: bool = True
+    excluded: tuple[str, ...] = ()
 
     THRESHOLDS = {
         "installations": 10,
@@ -95,7 +100,9 @@ class GateResult:
 
     @property
     def verdict(self) -> str:
-        if self.day < 30:
+        if not self.started:
+            return "not started"
+        if self.day < config.PILOT_DAYS:
             return "running"
         return "continue" if all(self.passing().values()) else "kill"
 
@@ -130,9 +137,8 @@ class Storage:
         """An install, or a reinstall of a previously removed app.
 
         `installed_at` exists for reconciliation. An install discovered days
-        after the fact must be dated when it happened, not when it was noticed
-        -- the gate counts from the earliest install, so backdating wrongly
-        would shift the whole 30-day window.
+        after the fact should be dated when it happened, not when it was
+        noticed, so the record reflects reality rather than our uptime.
         """
 
         when = installed_at.isoformat(timespec="seconds") if installed_at else _now()
@@ -240,41 +246,79 @@ class Storage:
 
     # ------------------------------------------------------------ the gate
 
-    def gate(self, *, started_at: datetime | None = None, now: datetime | None = None) -> GateResult:
-        """Evaluate the four day-30 thresholds against recorded events."""
+    def _pilot_start(self, started_at: datetime | None) -> datetime | None:
+        """When the window opens, or None if the listing is not live yet."""
+
+        if started_at is not None:
+            return started_at
+        if not config.PILOT_START:
+            return None
+        parsed = datetime.fromisoformat(config.PILOT_START)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
+
+    def gate(
+        self,
+        *,
+        started_at: datetime | None = None,
+        now: datetime | None = None,
+        excluded: Iterable[str] | None = None,
+    ) -> GateResult:
+        """Evaluate the four day-30 thresholds against recorded events.
+
+        Excluded accounts are filtered out of every count. The operator's own
+        organizations prove nothing about whether Marketplace delivers
+        customers, and a gate that counts them can be passed without a single
+        stranger ever arriving.
+        """
 
         moment = now or datetime.now(timezone.utc)
+        start = self._pilot_start(started_at)
+        day = 0 if start is None else max(0, (moment - start).days)
 
-        first = self.connection.execute(
-            "SELECT MIN(installed_at) AS first FROM installations"
-        ).fetchone()["first"]
-        if started_at is None:
-            started_at = (
-                datetime.fromisoformat(first) if first else moment
+        skip = tuple(
+            login.lower()
+            for login in (
+                excluded if excluded is not None else config.PILOT_EXCLUDED_ACCOUNTS
             )
-        day = max(0, (moment - started_at).days)
+        )
+        placeholders = ",".join("?" for _ in skip)
+        not_excluded = (
+            f"LOWER(account_login) NOT IN ({placeholders})" if skip else "1=1"
+        )
 
         installations = self.connection.execute(
-            "SELECT COUNT(*) AS n FROM installations"
+            f"SELECT COUNT(*) AS n FROM installations WHERE {not_excluded}", skip
         ).fetchone()["n"]
 
         with_collaborators = self.connection.execute(
-            """
-            SELECT COUNT(DISTINCT installation_id) AS n FROM scans
-            WHERE people_found > 0
-            """
+            f"""
+            SELECT COUNT(DISTINCT s.installation_id) AS n
+            FROM scans s
+            JOIN installations i ON i.installation_id = s.installation_id
+            WHERE s.people_found > 0 AND {not_excluded.replace('account_login', 'i.account_login')}
+            """,
+            skip,
         ).fetchone()["n"]
 
         # Retained means still installed now, not merely installed once.
         activated_and_retained = self.connection.execute(
-            """
+            f"""
             SELECT COUNT(*) AS n FROM installations
             WHERE review_interval_days IS NOT NULL AND uninstalled_at IS NULL
-            """
+              AND {not_excluded}
+            """,
+            skip,
         ).fetchone()["n"]
 
         interest = self.connection.execute(
-            "SELECT COUNT(*) AS n FROM enforcement_interest"
+            f"""
+            SELECT COUNT(*) AS n FROM enforcement_interest e
+            JOIN installations i ON i.installation_id = e.installation_id
+            WHERE {not_excluded.replace('account_login', 'i.account_login')}
+            """,
+            skip,
         ).fetchone()["n"]
 
         return GateResult(
@@ -283,14 +327,14 @@ class Storage:
             activated_and_retained=int(activated_and_retained),
             enforcement_interest=int(interest),
             day=day,
+            started=start is not None,
+            excluded=skip,
         )
 
     def days_remaining(self, *, now: datetime | None = None) -> int:
         moment = now or datetime.now(timezone.utc)
-        first = self.connection.execute(
-            "SELECT MIN(installed_at) AS first FROM installations"
-        ).fetchone()["first"]
-        if not first:
-            return 30
-        elapsed = moment - datetime.fromisoformat(first)
-        return max(0, (timedelta(days=30) - elapsed).days)
+        start = self._pilot_start(None)
+        if start is None:
+            return config.PILOT_DAYS
+        elapsed = moment - start
+        return max(0, (timedelta(days=config.PILOT_DAYS) - elapsed).days)

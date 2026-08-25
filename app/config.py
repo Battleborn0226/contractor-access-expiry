@@ -53,6 +53,25 @@ MAX_REPOS_PER_SCAN = 500
 # restarts -- but cheap enough (one API call) that drift never lasts a day.
 RECONCILE_INTERVAL_SECONDS = 6 * 60 * 60
 
+# When the 30-day window opens: the day the Marketplace listing goes live, set
+# explicitly as an ISO date (PILOT_START=2026-09-01).
+#
+# Not inferred from the first install, which would start the clock on the
+# operator's own smoke test. Days spent unlisted are days no stranger could
+# have found the app, and counting them would measure a shorter experiment
+# than the one designed -- then read the shortfall as failure.
+PILOT_START = _env("PILOT_START")
+PILOT_DAYS = 30
+
+# Accounts that do not count toward the thresholds. The operator's own
+# organizations are not evidence that Marketplace delivers customers, and a
+# gate that counts them can be passed without a single stranger arriving.
+PILOT_EXCLUDED_ACCOUNTS = tuple(
+    login.strip().lower()
+    for login in _env("PILOT_EXCLUDED_ACCOUNTS", "Battleborn0226").split(",")
+    if login.strip()
+)
+
 
 @dataclass(frozen=True)
 class Settings:

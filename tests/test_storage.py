@@ -70,7 +70,7 @@ class TestEnforcementInterest:
         assert store.record_enforcement_interest(1, "acme", "a@acme.com") is True
         assert store.record_enforcement_interest(1, "acme", "a@acme.com") is False
 
-        assert store.gate(now=NOW).enforcement_interest == 1
+        assert store.gate(now=NOW, excluded=()).enforcement_interest == 1
 
 
 class TestGate:
@@ -92,28 +92,47 @@ class TestGate:
         store.record_installation(1, "acme")
         store.record_scan(1, "acme", simple_report(people=2))
 
-        assert store.gate(now=NOW).with_collaborators == 1
+        assert store.gate(now=NOW, excluded=()).with_collaborators == 1
 
     def test_rescanning_does_not_double_count_an_org(self, store):
         store.record_installation(1, "acme")
         store.record_scan(1, "acme", simple_report(people=2))
         store.record_scan(1, "acme", simple_report(people=2))
 
-        assert store.gate(now=NOW).with_collaborators == 1
+        assert store.gate(now=NOW, excluded=()).with_collaborators == 1
 
     def test_an_uninstalled_org_is_not_retained(self, store):
         """Activation plus churn is not activation."""
 
         store.record_installation(1, "acme")
         store.set_review_interval(1, 90)
-        assert store.gate(now=NOW).activated_and_retained == 1
+        assert store.gate(now=NOW, excluded=()).activated_and_retained == 1
 
         store.record_uninstall(1)
-        assert store.gate(now=NOW).activated_and_retained == 0
+        assert store.gate(now=NOW, excluded=()).activated_and_retained == 0
 
     def test_verdict_is_running_before_day_thirty(self, store):
         store.record_installation(1, "acme")
-        assert store.gate(now=NOW).verdict == "running"
+        started = NOW - timedelta(days=3)
+        assert store.gate(started_at=started, now=NOW, excluded=()).verdict == "running"
+
+    def test_without_a_pilot_start_the_gate_has_not_started(self, store):
+        """Installing before the listing is live must not start the clock."""
+
+        store.record_installation(1, "acme")
+
+        result = store.gate(now=NOW, excluded=())
+        assert result.started is False
+        assert result.day == 0
+        assert result.verdict == "not started"
+
+    def test_the_clock_runs_from_the_pilot_start_not_the_first_install(self, store):
+        """Days spent unlisted are days nobody could have found the app."""
+
+        store.record_installation(1, "acme", installed_at=NOW - timedelta(days=20))
+        started = NOW - timedelta(days=4)
+
+        assert store.gate(started_at=started, now=NOW, excluded=()).day == 4
 
     def test_a_passing_pilot_says_continue(self, store):
         started = NOW - timedelta(days=31)
@@ -127,7 +146,7 @@ class TestGate:
         for index in range(2):
             store.record_enforcement_interest(index, f"org{index}")
 
-        result = store.gate(started_at=started, now=NOW)
+        result = store.gate(started_at=started, now=NOW, excluded=())
         assert all(result.passing().values())
         assert result.verdict == "continue"
 
@@ -143,11 +162,50 @@ class TestGate:
         # Only one enforcement signal; the threshold is two.
         store.record_enforcement_interest(0, "org0")
 
-        result = store.gate(started_at=started, now=NOW)
+        result = store.gate(started_at=started, now=NOW, excluded=())
         assert result.passing()["enforcement_interest"] is False
         assert result.verdict == "kill"
 
-    def test_days_remaining_counts_down_from_first_install(self, store):
+    def test_days_remaining_is_the_full_window_before_the_pilot_starts(self, store):
         store.record_installation(1, "acme")
-        remaining = store.days_remaining(now=NOW + timedelta(days=10))
-        assert 19 <= remaining <= 20
+        assert store.days_remaining(now=NOW) == 30
+
+
+class TestExcludedAccounts:
+    """The operator's own installs are not evidence about Marketplace."""
+
+    def test_the_operators_own_org_does_not_count(self, store):
+        store.record_installation(1, "Battleborn0226")
+        store.record_installation(2, "a-real-customer")
+
+        result = store.gate(now=NOW, excluded=("battleborn0226",))
+        assert result.installations == 1
+
+    def test_exclusion_is_case_insensitive(self, store):
+        store.record_installation(1, "BattleBorn0226")
+        assert store.gate(now=NOW, excluded=("battleborn0226",)).installations == 0
+
+    def test_excluded_orgs_are_filtered_from_every_threshold(self, store):
+        store.record_installation(1, "Battleborn0226")
+        store.record_scan(1, "Battleborn0226", simple_report(people=3))
+        store.set_review_interval(1, 90)
+        store.record_enforcement_interest(1, "Battleborn0226")
+
+        result = store.gate(now=NOW, excluded=("battleborn0226",))
+        assert result.installations == 0
+        assert result.with_collaborators == 0
+        assert result.activated_and_retained == 0
+        assert result.enforcement_interest == 0
+
+    def test_a_real_customer_still_counts_alongside_an_excluded_one(self, store):
+        for index, login in enumerate(["Battleborn0226", "real-org"]):
+            store.record_installation(index, login)
+            store.record_scan(index, login, simple_report(people=2))
+            store.set_review_interval(index, 90)
+            store.record_enforcement_interest(index, login)
+
+        result = store.gate(now=NOW, excluded=("battleborn0226",))
+        assert result.installations == 1
+        assert result.with_collaborators == 1
+        assert result.activated_and_retained == 1
+        assert result.enforcement_interest == 1

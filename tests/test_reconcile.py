@@ -70,16 +70,13 @@ class TestMissedInstalls:
         assert store.installation(1)["account_login"] == "acme"
 
     def test_a_recovered_install_is_dated_when_it_happened(self, store):
-        """Backdating matters: the gate's 30 days run from the first install."""
+        """The record should reflect reality, not our uptime."""
 
         happened = NOW - timedelta(days=5)
         reconcile(store, StubAppClient([install(1, "acme", created=happened)]))
 
         recorded = store.installation(1)["installed_at"]
         assert recorded.startswith("2026-08-20")
-
-        # The window is measured from the real date, not from discovery.
-        assert store.gate(now=NOW).day == 5
 
     def test_reconciling_twice_adds_nothing_the_second_time(self, store):
         client = StubAppClient([install(1, "acme")])
