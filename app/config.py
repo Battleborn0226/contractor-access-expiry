@@ -63,6 +63,9 @@ RECONCILE_INTERVAL_SECONDS = 6 * 60 * 60
 PILOT_START = _env("PILOT_START")
 PILOT_DAYS = 30
 
+# Shown on the privacy page. Bump it when the policy materially changes.
+PRIVACY_UPDATED = "25 August 2026"
+
 # Accounts that do not count toward the thresholds. The operator's own
 # organizations are not evidence that Marketplace delivers customers, and a
 # gate that counts them can be passed without a single stranger arriving.

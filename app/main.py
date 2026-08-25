@@ -130,6 +130,20 @@ def index(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy(request: Request) -> HTMLResponse:
+    """Required by the Marketplace listing, and worth having regardless.
+
+    The substantive claim -- that collaborator identities are never persisted
+    -- is a property of `Storage.record_scan`, which writes counts and totals
+    only. Keep it that way, or this page becomes a lie.
+    """
+
+    return templates.TemplateResponse(
+        request, "privacy.html", {"updated": config.PRIVACY_UPDATED}
+    )
+
+
 @app.get("/org/{installation_id}", response_class=HTMLResponse)
 def organization(request: Request, installation_id: int) -> HTMLResponse:
     """The report page: what access exists, and what it costs."""

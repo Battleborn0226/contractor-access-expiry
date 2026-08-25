@@ -92,3 +92,21 @@ def _rsa_key() -> str:
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     ).decode()
+
+
+class TestPrivacyPage:
+    """The privacy page makes a promise the storage layer has to keep."""
+
+    def test_scans_persist_no_collaborator_identities(self):
+        """The page says names are never stored. Pin that to the schema."""
+
+        from app.storage import SCHEMA
+
+        scans = SCHEMA[SCHEMA.index("CREATE TABLE IF NOT EXISTS scans") :]
+        scans = scans[: scans.index(");")]
+
+        for forbidden in ("login", "collaborator", "name", "email", "repo_full"):
+            assert forbidden not in scans.lower(), (
+                f"scans table gained a {forbidden!r} column -- the privacy "
+                f"page promises collaborator identities are never stored"
+            )

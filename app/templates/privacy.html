@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy{% endblock %}
+{% block content %}
+
+<h1>Privacy Policy</h1>
+<p class="sub">Contractor Access Expiry &middot; last updated {{ updated }}</p>
+
+<div class="headline">
+  <div class="big" style="font-size:1.4rem">We do not store who your collaborators are.</div>
+  <div class="note">
+    The report you see is computed live from GitHub each time you open it and
+    is not retained. What we keep is counts and totals &mdash; how many people,
+    how many flagged, what the estimate came to. Not names.
+  </div>
+</div>
+
+<h2>What the app reads</h2>
+
+<p>
+  With the read-only permissions you granted at install, the app asks GitHub
+  for:
+</p>
+<ul>
+  <li>the repositories the installation can see, and whether each is public, private, or internal</li>
+  <li>the outside collaborators on those repositories, and their permission level</li>
+  <li>the date of each collaborator's most recent commit to each repository</li>
+  <li>your organization's plan name, to pick the right per-seat rate</li>
+</ul>
+
+<p>
+  This data is used to build the report and then discarded. It is not written
+  to disk, not logged, and not sent anywhere.
+</p>
+
+<h2>What the app stores</h2>
+
+<table>
+  <thead><tr><th>Stored</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Installation ID, organization login, account type, install and uninstall times</td>
+      <td>To know the app is installed and to reach the right organization</td>
+    </tr>
+    <tr>
+      <td>Your chosen review interval</td>
+      <td>To remember the setting between visits</td>
+    </tr>
+    <tr>
+      <td>Per-scan totals: repositories scanned, number of collaborators found, number flagged, cost estimates</td>
+      <td>To show change over time. Counts only &mdash; no names</td>
+    </tr>
+    <tr>
+      <td>If you ask to hear about paid enforcement: your organization login, and an email address only if you type one</td>
+      <td>To contact you about that, and nothing else</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>What the app never stores</h2>
+
+<ul>
+  <li>Collaborator names, logins, or email addresses</li>
+  <li>Repository names or contents</li>
+  <li>Source code, commits, issues, or pull requests</li>
+  <li>Access tokens beyond the hour-long installation token held in memory</li>
+</ul>
+
+<h2>What the app cannot do</h2>
+
+<p>
+  It holds no write permissions. There is no code path that adds, changes, or
+  removes access, creates or modifies repository content, or acts on your
+  organization in any way. The capability does not exist in the application.
+  The source is public if you would rather verify that than take our word for
+  it.
+</p>
+
+<h2>Third parties</h2>
+
+<p>
+  Two, and no others: <strong>GitHub</strong>, which is where the data comes
+  from, and <strong>Fly.io</strong>, which hosts the application and stores its
+  database. There is no analytics, no tracking, no advertising, and no data is
+  sold or shared with anyone.
+</p>
+
+<h2>Retention and deletion</h2>
+
+<p>
+  Uninstalling the app immediately stops all access &mdash; the installation
+  token is revoked by GitHub and no further data can be read. The stored
+  records described above are kept so that reinstalling does not lose your
+  settings.
+</p>
+<p>
+  To have those records deleted, open an issue at
+  <a href="https://github.com/Battleborn0226/contractor-access-expiry/issues">the
+  project repository</a> and say so. There is no automated flow for it yet;
+  it is done by hand, and it is done.
+</p>
+
+<h2>Changes</h2>
+
+<p>
+  If this policy changes materially, the change lands in the public repository
+  with the rest of the source, where its history is visible.
+</p>
+
+<h2>Contact</h2>
+
+<p>
+  <a href="https://github.com/Battleborn0226/contractor-access-expiry/issues">Open
+  an issue</a> for anything &mdash; questions, deletion requests, or a security
+  concern.
+</p>
+
+{% endblock %}
