@@ -38,4 +38,7 @@ primary_region = "iad"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "256mb"
+  # 512MB rather than 256: uvicorn plus cryptography and httpx fits in 256
+  # most of the time, and an OOM mid-pilot would look like a Fly problem
+  # rather than a memory one. The difference is pennies.
+  memory = "512mb"
