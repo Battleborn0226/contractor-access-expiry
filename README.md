@@ -85,43 +85,6 @@ promotion, no reinterpreting the audience. Ten installs a month is the minimum
 trajectory to clear GitHub's 100-install requirement before a paid plan is even
 permitted.
 
-## Setup
-
-You register the App yourself — it generates a private key, and I do not handle
-credentials.
-
-**1. Create the GitHub App** at Settings → Developer settings → GitHub Apps →
-New GitHub App.
-
-- Webhook URL: `https://<your-host>/webhook`
-- Webhook secret: generate a long random string, keep it
-- **Repository permissions:** Metadata `Read-only`, Contents `Read-only`,
-  Administration `Read-only`
-- **Organization permissions:** Members `Read-only`
-- Subscribe to events: Installation
-- Do **not** request any write permission. The listing claims read-only and the
-  permission screen is the first thing a cautious admin reads.
-
-**2. Generate a private key** on the App's page and download the `.pem`.
-
-**3. Set the environment** — never commit any of these:
-
-```
-GITHUB_APP_ID=<numeric app id>
-GITHUB_PRIVATE_KEY_PATH=<path to the .pem>
-GITHUB_WEBHOOK_SECRET=<the secret from step 1>
-CAE_DB=data/cae.db
-```
-
-**4. Run it:**
-
-```bash
-.venv\Scripts\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-Any host that gives you a stable HTTPS URL works. The app is a single process
-with a SQLite file; it does not need a managed database at this scale.
-
 ## Tests
 
 ```bash
@@ -132,14 +95,3 @@ with a SQLite file; it does not need a managed database at this scale.
 implementation would overstate the saving — one person across many private
 repos, public-only collaborators, archived repositories.
 
-## Listing
-
-Name and description should carry search intent, since Marketplace has no
-ranking algorithm to help — only category browsing and a homepage slot that
-randomly features four apps. Native search intent is the only honest
-acquisition channel, and if it is insufficient the candidate is dead.
-
-Suggested: **Contractor Access Expiry — find and review GitHub outside
-collaborators before access becomes permanent.**
-
-Lead the description with seat cost, not compliance.
