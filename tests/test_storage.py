@@ -244,3 +244,55 @@ class TestMalformedPilotStart:
         assert result.started is True
         assert result.config_error is None
         assert result.day == 5
+
+
+class TestListingMetrics:
+    """Without these, a failed pilot says 'no' without saying why."""
+
+    def test_a_reading_is_recorded_and_read_back(self, store):
+        store.record_listing_metrics(420, 980, "week 2")
+
+        latest = store.latest_listing_metrics()
+        assert latest["visitors"] == 420
+        assert latest["pageviews"] == 980
+        assert latest["note"] == "week 2"
+
+    def test_the_latest_reading_wins(self, store):
+        store.record_listing_metrics(100, 200)
+        store.record_listing_metrics(300, 600)
+
+        assert store.latest_listing_metrics()["visitors"] == 300
+        assert len(store.listing_metrics_history()) == 2
+
+    def test_no_readings_yet(self, store):
+        assert store.latest_listing_metrics() is None
+        assert store.listing_metrics_history() == []
+
+    def test_negative_figures_are_clamped(self, store):
+        store.record_listing_metrics(-5, -9)
+        latest = store.latest_listing_metrics()
+        assert latest["visitors"] == 0 and latest["pageviews"] == 0
+
+
+class TestBackupIsConsistent:
+    def test_a_backup_restores_with_the_same_rows(self, store, tmp_path):
+        """A backup that only sometimes restores is worse than none."""
+
+        import sqlite3
+
+        store.record_installation(1, "acme")
+        store.record_listing_metrics(50, 120)
+
+        destination = tmp_path / "restored.db"
+        with sqlite3.connect(destination) as target:
+            store.connection.backup(target)
+
+        restored = sqlite3.connect(destination)
+        restored.row_factory = sqlite3.Row
+        assert restored.execute(
+            "SELECT COUNT(*) AS n FROM installations"
+        ).fetchone()["n"] == 1
+        assert restored.execute(
+            "SELECT visitors FROM listing_metrics"
+        ).fetchone()["visitors"] == 50
+        restored.close()

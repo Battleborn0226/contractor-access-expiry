@@ -60,6 +60,14 @@ CREATE TABLE IF NOT EXISTS enforcement_interest (
     UNIQUE(installation_id)
 );
 
+CREATE TABLE IF NOT EXISTS listing_metrics (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    recorded_at  TEXT NOT NULL,
+    visitors     INTEGER NOT NULL,
+    pageviews    INTEGER NOT NULL,
+    note         TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_scans_installation ON scans(installation_id, id);
 """
 
@@ -247,6 +255,38 @@ class Storage:
             return False
         self.connection.commit()
         return True
+
+    # ------------------------------------------------- marketplace insights
+
+    def record_listing_metrics(
+        self, visitors: int, pageviews: int, note: str = ""
+    ) -> None:
+        """Store a reading from GitHub's Marketplace Insights page.
+
+        Entered by hand because GitHub exposes Insights only in its web UI.
+        Without these numbers a failed pilot says "no" without saying why, and
+        "nobody saw the listing" implies a completely different next move from
+        "people saw it and did not install".
+        """
+
+        self.connection.execute(
+            "INSERT INTO listing_metrics (recorded_at, visitors, pageviews, note) "
+            "VALUES (?, ?, ?, ?)",
+            (_now(), max(0, int(visitors)), max(0, int(pageviews)), note.strip() or None),
+        )
+        self.connection.commit()
+
+    def latest_listing_metrics(self) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT * FROM listing_metrics ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+
+    def listing_metrics_history(self, limit: int = 20) -> list[sqlite3.Row]:
+        return list(
+            self.connection.execute(
+                "SELECT * FROM listing_metrics ORDER BY id DESC LIMIT ?", (limit,)
+            )
+        )
 
     # ------------------------------------------------------------ the gate
 

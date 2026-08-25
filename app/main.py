@@ -15,14 +15,17 @@ import contextlib
 import hashlib
 import hmac
 import logging
+import sqlite3
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app import config
+from app.diagnosis import diagnose
 from app.github_client import GitHubClient, GitHubError
 from app.reconcile import ReconcileResult, reconcile
 from app.scanner import scan_installation
@@ -86,6 +89,27 @@ def verify_signature(body: bytes, signature: str | None, secret: str) -> bool:
 
     expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature.removeprefix("sha256="))
+
+
+def _operator_authorised(key: str, request: Request) -> bool:
+    """Token from an Authorization header, or a query parameter.
+
+    The header is preferred -- query strings end up in browser history, proxy
+    logs, and referrer headers. The query form stays because the operator
+    needs to open this in a browser, and these pages carry counts rather than
+    collaborator identities.
+
+    No token configured means the operator surface is off, not open.
+    """
+
+    if not config.GATE_TOKEN:
+        return False
+
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        if hmac.compare_digest(header.removeprefix("Bearer "), config.GATE_TOKEN):
+            return True
+    return bool(key) and hmac.compare_digest(key, config.GATE_TOKEN)
 
 
 @app.get("/healthz")
@@ -222,15 +246,66 @@ def gate(request: Request, key: str = "") -> HTMLResponse:
     No token configured means the page is off, not open.
     """
 
-    if not config.GATE_TOKEN or not hmac.compare_digest(key, config.GATE_TOKEN):
+    if not _operator_authorised(key, request):
         raise HTTPException(status_code=404, detail="not found")
+
+    result = storage.gate()
+    metrics = storage.latest_listing_metrics()
 
     return templates.TemplateResponse(
         request,
         "gate.html",
         {
-            "gate": storage.gate(),
+            "gate": result,
             "days_remaining": storage.days_remaining(),
             "reconcile": last_reconcile,
+            "metrics": metrics,
+            "metrics_history": storage.listing_metrics_history(limit=10),
+            "diagnosis": diagnose(result, metrics),
+            "key": key,
         },
+    )
+
+
+@app.post("/gate/insights")
+def record_insights(
+    request: Request,
+    key: str = "",
+    visitors: int = Form(...),
+    pageviews: int = Form(...),
+    note: str = Form(""),
+) -> RedirectResponse:
+    """Record a reading from GitHub's Marketplace Insights page."""
+
+    if not _operator_authorised(key, request):
+        raise HTTPException(status_code=404, detail="not found")
+
+    storage.record_listing_metrics(visitors, pageviews, note)
+    return RedirectResponse(f"/gate?key={key}", status_code=303)
+
+
+@app.get("/gate/backup")
+def backup(request: Request, key: str = "") -> FileResponse:
+    """A consistent copy of the pilot database.
+
+    Taken through SQLite's backup API rather than by copying the file: a plain
+    copy of a database being written to can be torn, and a backup that only
+    sometimes restores is worse than none, because it is trusted.
+
+    This database is the experiment. A volume failure at day twenty with no
+    tested restore would erase the evidence rather than the software.
+    """
+
+    if not _operator_authorised(key, request):
+        raise HTTPException(status_code=404, detail="not found")
+
+    destination = Path(tempfile.gettempdir()) / "cae-backup.db"
+    with sqlite3.connect(destination) as target:
+        storage.connection.backup(target)
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
+    return FileResponse(
+        destination,
+        media_type="application/vnd.sqlite3",
+        filename=f"cae-{stamp}.db",
     )

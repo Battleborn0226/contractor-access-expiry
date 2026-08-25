@@ -75,10 +75,17 @@ quickly a new installation appears, not whether it is recorded at all.
 
 ## Operator dashboard
 
-`/gate` reports installation counts and sync status. It requires
-`GATE_TOKEN` to be set and matched as a query parameter
-(`/gate?key=<token>`); with no token configured the page returns 404 rather
-than serving openly.
+`/gate` reports installation counts, sync status, listing metrics, and a
+funnel diagnosis. It requires `GATE_TOKEN`, sent either as
+`Authorization: Bearer <token>` (preferred -- query strings leak into browser
+history and proxy logs) or as `?key=<token>` for browser use. With no token
+configured every operator route returns 404 rather than serving openly.
+
+`/gate/backup` returns a consistent copy of the database, taken through
+SQLite's backup API rather than by copying the file: a plain copy of a
+database being written to can be torn, and a backup that only sometimes
+restores is worse than none because it is trusted. Verify a restore opens
+before relying on it.
 
 ## Tests
 
