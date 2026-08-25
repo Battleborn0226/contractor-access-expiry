@@ -211,12 +211,19 @@ def notify_me(installation_id: int, email: str = Form("")) -> RedirectResponse:
 
 
 @app.get("/gate", response_class=HTMLResponse)
-def gate(request: Request) -> HTMLResponse:
-    """The kill criteria, computed from recorded events.
+def gate(request: Request, key: str = "") -> HTMLResponse:
+    """The operator's dashboard, computed from recorded events.
 
-    Deliberately reachable: a gate that has to be assembled by hand at the end
-    is a gate that gets argued with.
+    Reachable so the numbers cannot be quietly reinterpreted later, but behind
+    a token: it reports live counts and the conditions under which the project
+    would be abandoned, which is nothing a prospective customer should find by
+    guessing a URL.
+
+    No token configured means the page is off, not open.
     """
+
+    if not config.GATE_TOKEN or not hmac.compare_digest(key, config.GATE_TOKEN):
+        raise HTTPException(status_code=404, detail="not found")
 
     return templates.TemplateResponse(
         request,

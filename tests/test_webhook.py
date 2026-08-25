@@ -110,3 +110,45 @@ class TestPrivacyPage:
                 f"scans table gained a {forbidden!r} column -- the privacy "
                 f"page promises collaborator identities are never stored"
             )
+
+
+class TestGateAccess:
+    """The gate page reports live counts and the abandonment criteria.
+
+    It is an operator's instrument. A prospective customer finding it by
+    guessing a URL would read that the author plans to shut the project down
+    below ten installs, which is both none of their business and actively
+    harmful to the thing being measured.
+    """
+
+    def _client(self):
+        from fastapi.testclient import TestClient
+        from app.main import app
+
+        return TestClient(app)
+
+    def test_no_token_configured_means_the_page_is_off(self, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "GATE_TOKEN", "")
+        assert self._client().get("/gate").status_code == 404
+
+    def test_a_wrong_token_is_refused(self, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "GATE_TOKEN", "the-real-token")
+        assert self._client().get("/gate?key=guess").status_code == 404
+
+    def test_a_missing_token_is_refused(self, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "GATE_TOKEN", "the-real-token")
+        assert self._client().get("/gate").status_code == 404
+
+    def test_the_right_token_gets_in(self, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "GATE_TOKEN", "the-real-token")
+        response = self._client().get("/gate?key=the-real-token")
+        assert response.status_code == 200
+        assert "Threshold" in response.text

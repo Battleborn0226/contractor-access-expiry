@@ -61,6 +61,12 @@ RECONCILE_INTERVAL_SECONDS = 6 * 60 * 60
 # have found the app, and counting them would measure a shorter experiment
 # than the one designed -- then read the shortfall as failure.
 PILOT_START = _env("PILOT_START")
+
+# Token required to view /gate. The page reports live install counts and the
+# criteria for abandoning the project -- an operator's instrument, not
+# something a prospective customer should stumble across. Unset means the page
+# is disabled entirely rather than open.
+GATE_TOKEN = _env("GATE_TOKEN")
 PILOT_DAYS = 30
 
 # Shown on the privacy page. Bump it when the policy materially changes.

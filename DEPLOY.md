@@ -73,6 +73,13 @@ Installation state is also reconciled against the GitHub API at start-up and
 every six hours, so a missed delivery corrects itself. The webhook governs how
 quickly a new installation appears, not whether it is recorded at all.
 
+## Operator dashboard
+
+`/gate` reports installation counts and sync status. It requires
+`GATE_TOKEN` to be set and matched as a query parameter
+(`/gate?key=<token>`); with no token configured the page returns 404 rather
+than serving openly.
+
 ## Tests
 
 ```bash

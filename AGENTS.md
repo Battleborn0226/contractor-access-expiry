@@ -1,8 +1,8 @@
 # Contractor Access Expiry
 
 Read-only GitHub App: finds outside collaborators with stale access and prices
-the licensed seats they consume. A 30-day falsification test of whether
-Marketplace delivers installs without promotion. Full context in README.md.
+the licensed seats they consume. Full context in README.md; operator
+notes are kept outside this repository.
 
 ## Shared memory with ChatGPT/Codex
 
