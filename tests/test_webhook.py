@@ -22,14 +22,6 @@ from app.main import verify_signature
 
 SECRET = "a-test-webhook-secret"
 
-# Generated for tests only. Never used against a real installation.
-TEST_PRIVATE_KEY = """-----BEGIN RSA PRIVATE KEY-----
-MIICXAIBAAKBgQCvhqzE6XMi/rXFrNr7YtLxLXWFy2FZ0dGKlDlF7ZQrGh+DHkm5
-kKFxq5rLPX2Bj5cLxvMTFNjRW1F6XvJqQzYqvhKrxMnJZbPqXQdFvOYqJLpvXvvV
-0hLxNHKlqXFmYQKPqZmXKZQvJXhWfLxvQnGqXKGxMZjFqLpXvJqZKvhWfQIDAQAB
-AoGAJKKlqXFmYQKPqZmXKZQvJXhWfLxvQnGqXKGxMZjFqLpXvJqZKvhWfQvhqzE6
------END RSA PRIVATE KEY-----"""
-
 
 def sign(body: bytes, secret: str = SECRET) -> str:
     digest = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
