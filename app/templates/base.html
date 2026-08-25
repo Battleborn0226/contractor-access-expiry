@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Contractor Access Expiry{% endblock %}</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #59636e;
+    --line: #d1d9e0;
+    --accent: #0969da;
+    --warn-bg: #fff8c5;
+    --warn-line: #d4a72c;
+    --cost: #bc4c00;
+    --ok: #1a7f37;
+    --card: #f6f8fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --line: #3d444d;
+      --accent: #4493f8; --warn-bg: #282215; --warn-line: #9e6a03;
+      --cost: #db6d28; --ok: #3fb950; --card: #151b23;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 52rem; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.15rem; margin: 2rem 0 .75rem; }
+  .sub { color: var(--muted); margin: 0 0 2rem; }
+  .headline {
+    border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); padding: 1.5rem; margin-bottom: 1.5rem;
+  }
+  .big { font-size: 2.4rem; font-weight: 600; color: var(--cost); line-height: 1.1; }
+  .big.none { color: var(--ok); }
+  .note { color: var(--muted); font-size: .875rem; margin-top: .5rem; }
+  table { width: 100%; border-collapse: collapse; font-size: .925rem; }
+  th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--line); }
+  th { font-weight: 600; color: var(--muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .03em; }
+  .wrap { overflow-x: auto; }
+  .tag {
+    display: inline-block; padding: .1rem .45rem; border-radius: 999px;
+    font-size: .75rem; border: 1px solid var(--line);
+  }
+  .tag.stale { background: var(--warn-bg); border-color: var(--warn-line); }
+  .tag.none { background: var(--warn-bg); border-color: var(--warn-line); }
+  .callout {
+    border: 1px solid var(--warn-line); background: var(--warn-bg);
+    border-radius: 8px; padding: 1rem; margin: 1.5rem 0; font-size: .925rem;
+  }
+  form { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .5rem 0; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+    padding: .5rem .9rem; font-size: .925rem; cursor: pointer;
+  }
+  select, input[type=email] {
+    padding: .45rem .5rem; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--fg); font-size: .925rem;
+  }
+  code { background: var(--card); padding: .1rem .3rem; border-radius: 4px; font-size: .875em; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+{% block content %}{% endblock %}
+<footer>
+  Contractor Access Expiry is read-only. It holds no write permissions and
+  cannot add, change, or remove access in your organization.
+</footer>
+</main>
+</body>
+</html>

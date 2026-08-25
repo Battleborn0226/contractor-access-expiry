@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}{{ org }} — outside collaborator review{% endblock %}
+{% block content %}
+
+<h1>{{ org }}</h1>
+<p class="sub">
+  {{ report.repos_scanned }} repositories scanned ·
+  {{ report.people|length }} outside collaborator{{ '' if report.people|length == 1 else 's' }} ·
+  {{ report.scanned_at.strftime('%Y-%m-%d %H:%M') }} UTC
+</p>
+
+<div class="headline">
+  {% set recoverable = report.recoverable_monthly_cost() %}
+  {% if recoverable > 0 %}
+    <div class="big">${{ '%.2f'|format(recoverable) }}/month</div>
+    <div>
+      in licensed seats held by
+      {{ flagged|selectattr('billable')|list|length }} outside
+      collaborator{{ '' if flagged|selectattr('billable')|list|length == 1 else 's' }}
+      with no commit activity in {{ stale_days }}+ days.
+    </div>
+  {% else %}
+    <div class="big none">Nothing flagged</div>
+    <div>
+      Every outside collaborator with a licensed seat has committed in the
+      last {{ stale_days }} days.
+    </div>
+  {% endif %}
+  <div class="note">
+    Total outside-collaborator seats: {{ report.billable_people|length }}
+    (${{ '%.2f'|format(report.monthly_seat_cost()) }}/month).
+    Estimated at the published {{ report.seat_price_key }} rate of
+    ${{ '%.2f'|format(report.seat_price) }} per user per month — your actual
+    invoice is the authority. Collaborators on public repositories are not
+    billed and are excluded. Each person counts once regardless of how many
+    private repositories they can reach.
+  </div>
+</div>
+
+{% if flagged %}
+<h2>Worth reviewing</h2>
+<div class="wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Collaborator</th><th>Repos</th><th>Highest access</th>
+      <th>Last commit</th><th>Seat</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for person in flagged %}
+    <tr>
+      <td><strong>{{ person.login }}</strong></td>
+      <td>{{ person.repo_count }}</td>
+      <td>{{ person.highest_permission }}</td>
+      <td>
+        {% set days = person.days_since_commit(now=now) %}
+        {% if days is none %}
+          <span class="tag none">no commits found</span>
+        {% else %}
+          <span class="tag stale">{{ days }} days ago</span>
+        {% endif %}
+      </td>
+      <td>{% if person.billable %}${{ '%.2f'|format(report.seat_price) }}{% else %}—{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<div class="callout">
+  <strong>Read this before acting.</strong>
+  &ldquo;No commit activity&rdquo; is not proof someone is inactive — a
+  contractor who only reviews pull requests or files issues leaves no commits.
+  Treat this as a list worth checking, not a list to delete.
+  <br><br>
+  Removing an outside collaborator from a private repository permanently
+  deletes any private forks they hold. That cannot be undone, by this app or
+  by GitHub. Remove access in GitHub yourself, deliberately.
+</div>
+{% endif %}
+
+{% if report.people|length > flagged|length %}
+<h2>Recently active</h2>
+<div class="wrap">
+<table>
+  <thead>
+    <tr><th>Collaborator</th><th>Repos</th><th>Highest access</th><th>Last commit</th></tr>
+  </thead>
+  <tbody>
+  {% for person in report.people %}
+    {% if person not in flagged %}
+    <tr>
+      <td>{{ person.login }}</td>
+      <td>{{ person.repo_count }}</td>
+      <td>{{ person.highest_permission }}</td>
+      <td>{{ person.days_since_commit(now=now) }} days ago</td>
+    </tr>
+    {% endif %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<h2>Review interval</h2>
+<p class="sub" style="margin-bottom:.5rem">
+  How long should a new contractor grant run before it is flagged for review?
+</p>
+<form method="post" action="/org/{{ installation_id }}/interval">
+  <select name="days">
+    {% for choice in interval_choices %}
+      <option value="{{ choice }}" {% if current_interval == choice %}selected{% endif %}>
+        {{ choice }} days
+      </option>
+    {% endfor %}
+  </select>
+  <button type="submit">
+    {% if current_interval %}Update{% else %}Set interval{% endif %}
+  </button>
+  {% if current_interval %}
+    <span class="note">Currently {{ current_interval }} days.</span>
+  {% endif %}
+</form>
+
+<h2>Automatic enforcement</h2>
+{% if already_interested %}
+  <p>Noted — we will email you when automatic expiry and revocation ship.</p>
+{% else %}
+  <p class="sub" style="margin-bottom:.5rem">
+    This version only reports. A paid tier would enforce leases automatically:
+    expire grants on schedule, prompt the granting admin, and revoke after a
+    grace period with an evidence trail. Not built yet — tell us if you want it.
+  </p>
+  <form method="post" action="/org/{{ installation_id }}/notify-me">
+    <input type="email" name="email" placeholder="you@company.com (optional)">
+    <button type="submit">Tell me when enforcement ships</button>
+  </form>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Contractor Access Expiry</h1>
+<p class="sub">
+  Find and review GitHub outside collaborators before their access becomes
+  permanent.
+</p>
+
+<div class="headline">
+  <div>Your identity provider offboards employees.</div>
+  <div class="big" style="font-size:1.6rem">Nobody offboards contractors.</div>
+  <div class="note">
+    GitHub's SCIM provisioning manages organization <em>members</em>. Outside
+    collaborators are not members, so they sit outside that lifecycle
+    entirely — and on private or internal repositories, each one consumes a
+    licensed seat for as long as the grant exists.
+  </div>
+</div>
+
+<h2>What it does</h2>
+<ul>
+  <li>Inventories every outside collaborator across your repositories</li>
+  <li>Shows who has had no commit activity in {{ stale_days }}+ days</li>
+  <li>Estimates what those seats cost you per month</li>
+  <li>Lets you set a review interval for new grants</li>
+</ul>
+
+<h2>What it cannot do</h2>
+<p>
+  It holds no write permissions. It cannot add, change, or remove access —
+  there is no code path that does. Removing a collaborator from a private
+  repository permanently deletes their private forks, so that decision stays
+  with you, made deliberately in GitHub.
+</p>
+
+<footer style="border:0;margin-top:2rem;padding:0">
+  Install from the GitHub Marketplace to see your organization's report.
+</footer>
+{% endblock %}
