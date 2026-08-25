@@ -79,6 +79,7 @@ class GateResult:
     day: int
     started: bool = True
     excluded: tuple[str, ...] = ()
+    config_error: str | None = None
 
     THRESHOLDS = {
         "installations": 10,
@@ -115,6 +116,9 @@ class Storage:
         self.connection.row_factory = sqlite3.Row
         self.connection.executescript(SCHEMA)
         self.connection.commit()
+        # Set by _pilot_start when PILOT_START cannot be parsed; surfaced on
+        # /gate so a bad value is visible rather than silently ignored.
+        self.pilot_start_error: str | None = None
 
     def close(self) -> None:
         self.connection.close()
@@ -247,13 +251,29 @@ class Storage:
     # ------------------------------------------------------------ the gate
 
     def _pilot_start(self, started_at: datetime | None) -> datetime | None:
-        """When the window opens, or None if the listing is not live yet."""
+        """When the window opens, or None if the listing is not live yet.
+
+        A malformed PILOT_START is reported, never raised. This page is the
+        instrument that decides whether the project lives; a typo in one
+        environment variable must not be able to take it down, and a silent
+        crash is a worse failure than a visible wrong date.
+        """
 
         if started_at is not None:
             return started_at
         if not config.PILOT_START:
             return None
-        parsed = datetime.fromisoformat(config.PILOT_START)
+
+        try:
+            parsed = datetime.fromisoformat(config.PILOT_START)
+        except ValueError:
+            self.pilot_start_error = (
+                f"PILOT_START is not a date: {config.PILOT_START!r}. "
+                f"Expected YYYY-MM-DD. Treating the pilot as not started."
+            )
+            return None
+
+        self.pilot_start_error = None
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return parsed
@@ -329,6 +349,7 @@ class Storage:
             day=day,
             started=start is not None,
             excluded=skip,
+            config_error=self.pilot_start_error,
         )
 
     def days_remaining(self, *, now: datetime | None = None) -> int:

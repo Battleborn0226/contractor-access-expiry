@@ -2,6 +2,11 @@
 {% block title %}Pilot gate{% endblock %}
 {% block content %}
 <h1>30-day gate</h1>
+{% if gate.config_error %}
+<div class="callout">
+  <strong>Configuration problem.</strong> {{ gate.config_error }}
+</div>
+{% endif %}
 {% if not gate.started %}
 <p class="sub">
   Not started &mdash; verdict: <strong>{{ gate.verdict }}</strong>

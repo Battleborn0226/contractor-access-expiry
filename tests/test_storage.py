@@ -209,3 +209,38 @@ class TestExcludedAccounts:
         assert result.with_collaborators == 1
         assert result.activated_and_retained == 1
         assert result.enforcement_interest == 1
+
+
+class TestMalformedPilotStart:
+    """A typo in one environment variable must not take down the gate page.
+
+    This page is what decides whether the project lives. A crash there is
+    worse than a wrong date, because a wrong date is visible and a 500 just
+    looks like the app is broken.
+    """
+
+    def test_a_bad_pilot_start_does_not_raise(self, store, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "PILOT_START", "2026-XX-XX")
+
+        result = store.gate(now=NOW, excluded=())
+        assert result.started is False
+        assert result.verdict == "not started"
+        assert "2026-XX-XX" in result.config_error
+
+    def test_days_remaining_survives_a_bad_pilot_start(self, store, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "PILOT_START", "not-a-date")
+        assert store.days_remaining(now=NOW) == 30
+
+    def test_a_good_pilot_start_clears_the_error(self, store, monkeypatch):
+        from app import config
+
+        monkeypatch.setattr(config, "PILOT_START", "2026-08-20")
+
+        result = store.gate(now=NOW, excluded=())
+        assert result.started is True
+        assert result.config_error is None
+        assert result.day == 5
