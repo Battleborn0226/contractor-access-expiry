@@ -64,7 +64,7 @@
       ('Organizations installed', 'installations', gate.installations),
       ('With outside collaborators', 'with_collaborators', gate.with_collaborators),
       ('Set interval and retained', 'activated_and_retained', gate.activated_and_retained),
-      ('Asked for paid enforcement', 'enforcement_interest', gate.enforcement_interest)
+      ('Asked about the paid plan', 'enforcement_interest', gate.enforcement_interest)
     ] %}
     {% for label, key, actual in rows %}
     <tr>
@@ -83,6 +83,12 @@
   </tbody>
 </table>
 </div>
+
+<p class="sub">
+  Threshold 4 counts owners who asked to hear when a paid plan launches. That
+  is interest, not validated willingness to pay &mdash; nobody has been shown a
+  price, so a pass here must not be written up as purchase intent.
+</p>
 
 {% if diagnosis %}
 <h2>Funnel</h2>

@@ -222,7 +222,7 @@ def set_interval(installation_id: int, days: int = Form(...)) -> RedirectRespons
 
 @app.post("/org/{installation_id}/notify-me")
 def notify_me(installation_id: int, email: str = Form("")) -> RedirectResponse:
-    """Willingness-to-pay signal, collected without charging anyone."""
+    """Paid-plan interest. Not willingness to pay -- no price is shown."""
 
     record = storage.installation(installation_id)
     if record is None:

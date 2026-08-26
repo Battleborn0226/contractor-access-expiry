@@ -10,10 +10,13 @@ The thresholds:
   1. at least 10 organizations installed the app
   2. at least 4 of those actually have outside collaborators
   3. at least 3 set a review interval and still had the app at day 30
-  4. at least 2 asked to be told when paid enforcement ships
+  4. at least 2 asked to be told when the paid plan launches
 
 All four must pass. Any miss kills the project -- no extension, no promotion,
 no reinterpreting the audience.
+
+Threshold 4 measures interest in a paid plan, not willingness to pay. No price
+is ever shown during the pilot, so nothing here validates purchase intent.
 """
 
 from __future__ import annotations
@@ -230,16 +233,21 @@ class Storage:
             (installation_id,),
         ).fetchone()
 
-    # ---------------------------------------------------- enforcement signal
+    # -------------------------------------------------- paid-plan interest
 
     def record_enforcement_interest(
         self, installation_id: int, account_login: str, email: str | None = None
     ) -> bool:
-        """An owner asked to hear when paid enforcement ships.
+        """An owner asked to hear when the paid plan launches.
 
-        This is the willingness-to-pay signal, and the only one collected
-        without charging anybody. One per installation -- an owner clicking
-        twice is not two data points.
+        Interest, not willingness to pay: no price is shown, so a click says
+        the owner wants to hear more and nothing stronger. One per
+        installation -- an owner clicking twice is not two data points.
+
+        The table is still named `enforcement_interest`. The copy asked about
+        enforcement specifically until the wording was corrected before
+        go-live; the name stayed rather than migrate the pilot's evidence
+        database for a cosmetic gain.
         """
 
         try:

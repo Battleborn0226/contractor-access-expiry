@@ -123,18 +123,19 @@
   {% endif %}
 </form>
 
-<h2>Automatic enforcement</h2>
+<h2>The paid plan</h2>
 {% if already_interested %}
-  <p>Noted — we will email you when automatic expiry and revocation ship.</p>
+  <p>Noted — we will email you when the paid plan launches.</p>
 {% else %}
   <p class="sub" style="margin-bottom:.5rem">
-    This version only reports. A paid tier would enforce leases automatically:
-    expire grants on schedule, prompt the granting admin, and revoke after a
-    grace period with an evidence trail. Not built yet — tell us if you want it.
+    This version only reports. A paid plan would carry the work forward:
+    reminders before access goes stale, renewal and revocation decisions kept
+    as review evidence, and optionally expiring grants automatically. Not
+    built yet, and not yet priced — tell us if you want to hear when it is.
   </p>
   <form method="post" action="/org/{{ installation_id }}/notify-me">
     <input type="email" name="email" placeholder="you@company.com (optional)">
-    <button type="submit">Tell me when enforcement ships</button>
+    <button type="submit">Tell me when the paid plan launches</button>
   </form>
 {% endif %}
 
