@@ -15,6 +15,11 @@ his own dashboard on day 30 and believes it.
 
 The `enforcement_interest` table keeps its name deliberately, so these checks
 look at rendered text and prose, never at identifiers.
+
+preview.html is deliberately absent from the list below. It is generated from
+report.html by tools/preview_report.py and gitignored, so asserting on it fails
+in any fresh clone -- and covering the template covers everything rendered from
+it anyway.
 """
 
 from __future__ import annotations
@@ -27,7 +32,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def rendered_text(path: str) -> str:
+def template_text(path: str) -> str:
     """Template source with Jinja expressions left in -- close enough.
 
     Every string under test is literal text, not interpolated, so reading the
@@ -39,14 +44,13 @@ def rendered_text(path: str) -> str:
 
 CUSTOMER_FACING = [
     "app/templates/report.html",
-    "preview.html",
     "app/templates/privacy.html",
 ]
 
 
 @pytest.mark.parametrize("path", CUSTOMER_FACING)
 def test_customer_copy_asks_about_the_paid_plan(path):
-    text = rendered_text(path).lower()
+    text = template_text(path).lower()
     assert "paid plan" in text, f"{path} no longer mentions the paid plan"
 
 
@@ -54,7 +58,7 @@ def test_customer_copy_asks_about_the_paid_plan(path):
 def test_customer_copy_does_not_ask_about_enforcement(path):
     """Enforcement may be mentioned as one possibility, never as the offer."""
 
-    text = rendered_text(path).lower()
+    text = template_text(path).lower()
     for phrase in (
         "tell me when enforcement ships",
         "automatic enforcement</h2>",
@@ -64,13 +68,13 @@ def test_customer_copy_does_not_ask_about_enforcement(path):
 
 
 def test_the_gate_does_not_label_threshold_four_as_enforcement():
-    text = rendered_text("app/templates/gate.html").lower()
+    text = template_text("app/templates/gate.html").lower()
     assert "asked for paid enforcement" not in text
     assert "asked about the paid plan" in text
 
 
 def test_the_gate_says_the_signal_is_not_willingness_to_pay():
-    text = rendered_text("app/templates/gate.html").lower()
+    text = template_text("app/templates/gate.html").lower()
     assert "not validated willingness to pay" in text
 
 
